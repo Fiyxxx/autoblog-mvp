@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: autoblog
+      POSTGRES_PASSWORD: autoblog
+      POSTGRES_DB: autoblog
+    ports:
+      - "5432:5432"
+    volumes:
+      - autoblog_pgdata:/var/lib/postgresql/data
+volumes:
+  autoblog_pgdata:
