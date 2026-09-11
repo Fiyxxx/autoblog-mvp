@@ -2,6 +2,8 @@ import { getPublishedPosts } from '@/lib/posts'
 import { FeaturedPost } from '@/components/blog/FeaturedPost'
 import { PostCard } from '@/components/blog/PostCard'
 
+export const dynamic = 'force-dynamic'
+
 export default async function BlogHomePage() {
   const posts = await getPublishedPosts()
 
