@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client'
+import type { Prisma } from '../generated/prisma/client'
 import { prisma } from './db'
 import { deriveStatus, type TaskStatus } from './task-status'
 import { generateBlogPost, TOPICS } from './content-generator'
