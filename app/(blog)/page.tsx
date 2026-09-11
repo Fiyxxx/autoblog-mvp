@@ -1,31 +1,36 @@
-import { getPublishedPosts } from '@/lib/posts'
-import { FeaturedPost } from '@/components/blog/FeaturedPost'
-import { PostCard } from '@/components/blog/PostCard'
+import type { Metadata } from 'next'
+import { getPublishedPosts, getFilterOptions } from '@/lib/posts'
+import { PostImageCard } from '@/components/blog/PostImageCard'
+import { BlogMasthead } from '@/components/blog/BlogMasthead'
+import { CategoryTabs } from '@/components/blog/CategoryTabs'
+import { COMPANY_NAME } from '@/lib/constants'
 
 export const dynamic = 'force-dynamic'
 
-export default async function BlogHomePage() {
-  const posts = await getPublishedPosts()
+export const metadata: Metadata = {
+  title: 'Blog',
+  description: `Product, engineering, and company updates from ${COMPANY_NAME}.`,
+}
 
-  if (posts.length === 0) {
-    return (
-      <p className="border-t border-border pt-10 text-center font-mono text-xs text-muted-foreground">
-        the wire is quiet — nothing filed yet
-      </p>
-    )
-  }
-
-  const [featured, ...rest] = posts
+export default async function BlogHomePage({ searchParams }: PageProps<'/'>) {
+  const params = await searchParams
+  const tag = Array.isArray(params.tag) ? params.tag[0] : params.tag
+  const now = new Date()
+  const [posts, options] = await Promise.all([getPublishedPosts(now, { tag }), getFilterOptions(now)])
 
   return (
-    <div className="flex flex-col gap-10">
-      <FeaturedPost post={featured} />
-      {rest.length > 0 && (
-        <div className="grid divide-y divide-border md:grid-cols-3 md:gap-8 md:divide-y-0 md:divide-x">
-          {rest.map((post) => (
-            <div key={post.slug} className="py-6 first:pt-0 md:px-6 md:py-0 md:first:pl-0 md:last:pr-0">
-              <PostCard post={post} />
-            </div>
+    <div>
+      <BlogMasthead description={`New product features, the latest in engineering, and updates from ${COMPANY_NAME}.`} />
+      <CategoryTabs tags={options.tags} activeTag={tag} />
+
+      {posts.length === 0 ? (
+        <p className="py-16 text-center text-sm text-muted-foreground">
+          {tag ? 'No posts match this filter.' : 'No posts yet — check back soon.'}
+        </p>
+      ) : (
+        <div className="grid gap-x-8 gap-y-12 pt-10 sm:grid-cols-2">
+          {posts.map((post) => (
+            <PostImageCard key={post.slug} post={post} />
           ))}
         </div>
       )}

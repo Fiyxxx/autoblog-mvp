@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Autoblog MVP
 
-## Getting Started
+![System architecture](docs/system-architecture.png)
 
-First, run the development server:
+*system architecture*
+
+A deterministic content-operations demo built with Next.js 16, React 19, Prisma, and PostgreSQL. An admin can start a publishing run, watch posts move from queued to generating to filed, review prior runs, and archive posts without deleting their history. Published posts appear on the public blog with category filters and SEO metadata.
+
+The content and engagement metrics are simulated. There is no external AI or analytics service in this MVP.
+
+This demo does not include authentication or authorization. Add an authenticated admin boundary before exposing the admin pages or mutation APIs on a public deployment.
+
+## Local setup
+
+Requirements: Node.js 20.9+, pnpm 10+, and Docker.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+That one command creates `.env` when needed, installs dependencies, starts
+PostgreSQL, applies migrations, seeds the required authors, and starts the
+Next.js development server. Each step is safe to run again on later starts.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Open [http://localhost:3000](http://localhost:3000) for the blog or [http://localhost:3000/admin](http://localhost:3000/admin) for content operations.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Quality checks
 
-## Learn More
+```bash
+pnpm check
+pnpm build
+```
 
-To learn more about Next.js, take a look at the following resources:
+Integration tests use the PostgreSQL database configured by `DATABASE_URL` and reset the run, task, and post tables. Use a dedicated local or CI database; do not point the test command at production data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Main modules
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `app/(blog)`: server-rendered public blog and article pages
+- `app/(admin)`: server-rendered admin entry points with small client islands for polling, streaming, and mutations
+- `app/api`: route handlers used by those interactive client islands
+- `lib/tasks.ts`: run orchestration and task read models
+- `lib/posts.ts`: publishing queries and archive mutation
+- `lib/content-generator.ts`: deterministic demo content provider
+- `prisma`: schema, migrations, and author seed data
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Set `NEXT_PUBLIC_SITE_URL` in production so canonical URLs, the sitemap, and `llms.txt` use the deployed origin.

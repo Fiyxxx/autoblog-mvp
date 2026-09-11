@@ -1,72 +1,143 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { TaskStatusBadge } from './TaskStatusBadge'
-import type { TaskStatus } from '@/lib/task-status'
+import { ToastStack, useToasts } from './Toast'
+import { fetchJson } from '@/lib/fetch-json'
+import type { TaskListItem } from '@/lib/tasks'
 
-interface TaskListItem {
-  id: string
-  topic: string
-  prompt: string
-  author: { name: string }
-  status: TaskStatus
-  createdAt: string
-}
+const POLL_INTERVAL_MS = 2000
 
-export function TaskList() {
-  const [tasks, setTasks] = useState<TaskListItem[] | null>(null)
+export function TaskList({ initialTasks }: { initialTasks: TaskListItem[] }) {
+  const router = useRouter()
+  const [tasks, setTasks] = useState(initialTasks)
+  const [restarting, setRestarting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { toasts, push } = useToasts()
+  const previousStatuses = useRef(new Map(initialTasks.map((task) => [task.id, task.status])))
+
+  const refresh = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const data = await fetchJson<{ tasks: TaskListItem[] }>('/api/tasks', { signal })
+
+        for (const task of data.tasks) {
+          const previousStatus = previousStatuses.current.get(task.id)
+          if (previousStatus && previousStatus !== 'completed' && task.status === 'completed') {
+            push(`Filed: ${task.postTitle ?? task.prompt}`)
+          }
+        }
+
+        previousStatuses.current = new Map(data.tasks.map((task) => [task.id, task.status]))
+        setTasks(data.tasks)
+        setError(null)
+        return data.tasks
+      } catch (cause) {
+        if (cause instanceof DOMException && cause.name === 'AbortError') return null
+        setError(cause instanceof Error ? cause.message : 'Unable to refresh tasks')
+        return null
+      }
+    },
+    [push]
+  )
+
+  const hasActiveTasks = tasks.some((task) => task.status !== 'completed')
 
   useEffect(() => {
-    const seedTimer = setTimeout(() => {
-      fetch('/api/tasks/seed-day', { method: 'POST' }).then(() => {
-        refresh()
-      })
-    }, 5000)
+    if (!hasActiveTasks) return
 
-    function refresh() {
-      fetch('/api/tasks')
-        .then((res) => res.json())
-        .then((data) => setTasks(data.tasks))
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
+
+    const poll = async () => {
+      await refresh(controller.signal)
+      if (!controller.signal.aborted) timer = setTimeout(poll, POLL_INTERVAL_MS)
     }
 
-    refresh()
-    const pollTimer = setInterval(refresh, 2000)
+    timer = setTimeout(poll, POLL_INTERVAL_MS)
 
     return () => {
-      clearTimeout(seedTimer)
-      clearInterval(pollTimer)
+      controller.abort()
+      if (timer) clearTimeout(timer)
     }
-  }, [])
+  }, [hasActiveTasks, refresh])
 
-  if (tasks === null || tasks.length === 0) {
-    return (
-      <p className="border-t border-border py-6 font-mono text-xs text-muted-foreground">
-        waiting for today&apos;s tasks…
-      </p>
-    )
+  async function handleStartDay() {
+    if (
+      tasks.length > 0 &&
+      !window.confirm('This starts a new batch and keeps the current run in History. Continue?')
+    ) {
+      return
+    }
+
+    setRestarting(true)
+    setError(null)
+
+    try {
+      await fetchJson('/api/tasks/restart-day', { method: 'POST' })
+      await refresh()
+      router.refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to start a new run')
+    } finally {
+      setRestarting(false)
+    }
   }
 
   return (
-    <ul className="border-t border-border">
-      {tasks.map((task, index) => (
-        <li key={task.id} className="border-b border-border">
-          <Link
-            href={`/admin/tasks/${task.id}`}
-            className="flex flex-wrap items-center gap-x-4 gap-y-1 py-4 transition-colors hover:bg-secondary/50"
-          >
-            <span className="font-mono text-xs text-muted-foreground">
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <span className="shrink-0 font-mono text-xs uppercase tracking-wide text-ink-soft">
-              {task.topic}
-            </span>
-            <span className="min-w-0 flex-1 basis-full truncate font-serif sm:basis-auto">{task.prompt}</span>
-            <span className="hidden shrink-0 font-mono text-xs text-muted-foreground sm:inline">{task.author.name}</span>
-            <TaskStatusBadge status={task.status} />
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <div>
+      <ToastStack toasts={toasts} />
+      <div className="mb-6 flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+        </p>
+        <button
+          type="button"
+          onClick={handleStartDay}
+          disabled={restarting}
+          className="rounded-md bg-foreground px-3.5 py-2 text-sm font-medium text-background transition-opacity hover:opacity-85 disabled:opacity-50"
+        >
+          {restarting ? 'Starting…' : tasks.length > 0 ? 'Restart day' : 'Start day'}
+        </button>
+      </div>
+
+      {error && (
+        <p role="alert" className="mb-4 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {tasks.length === 0 ? (
+        <p className="border-t border-border py-10 text-center text-sm text-muted-foreground">
+          No tasks yet — start the day to generate today’s posts.
+        </p>
+      ) : (
+        <ul className="border-t border-border">
+          {tasks.map((task, index) => (
+            <li
+              key={task.id}
+              className={`border-b border-border ${task.status !== 'completed' ? 'animate-pulse' : ''}`}
+            >
+              <Link
+                href={`/admin/tasks/${task.id}`}
+                className="flex flex-wrap items-center gap-x-4 gap-y-1 py-4 transition-colors hover:bg-secondary/50"
+              >
+                <span className="font-mono text-xs text-muted-foreground">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="shrink-0 rounded-full border border-border px-2 py-0.5 font-mono text-[0.7rem] uppercase tracking-wide text-ink-soft">
+                  {task.topic}
+                </span>
+                <span className="min-w-0 flex-1 basis-full truncate sm:basis-auto">{task.prompt}</span>
+                <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">{task.author.name}</span>
+                <TaskStatusBadge status={task.status} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }

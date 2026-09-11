@@ -17,10 +17,21 @@ model Author {
   @@map("authors")
 }
 
+model Run {
+  id        String   @id @default(uuid())
+  startedAt DateTime @default(now()) @map("started_at")
+  tasks     Task[]
+
+  @@map("runs")
+  @@index([startedAt])
+}
+
 model Task {
   id           String    @id @default(uuid())
   prompt       String    @db.Text
   topic        String
+  runId        String    @map("run_id")
+  run          Run       @relation(fields: [runId], references: [id])
   authorId     String    @map("author_id")
   author       Author    @relation(fields: [authorId], references: [id])
   queuedAt     DateTime  @map("queued_at")
@@ -30,7 +41,7 @@ model Task {
   post         BlogPost?
 
   @@map("tasks")
-  @@index([createdAt])
+  @@index([runId, createdAt])
 }
 
 model BlogPost {
@@ -47,8 +58,9 @@ model BlogPost {
   author       Author   @relation(fields: [authorId], references: [id])
   companyName  String   @map("company_name")
   publishedAt  DateTime @map("published_at")
+  archived     Boolean  @default(false)
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("blog_posts")
-  @@index([publishedAt])
+  @@index([archived, publishedAt])
 }

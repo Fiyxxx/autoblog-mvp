@@ -1,59 +1,67 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, act } from '@testing-library/react'
+// @vitest-environment jsdom
+
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { TaskList } from './TaskList'
 
-describe('TaskList', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}))
 
+const existingTask = {
+  id: 't1',
+  topic: 'product-update',
+  prompt: 'Write a product update.',
+  author: { name: 'Priya Nathan' },
+  status: 'completed' as const,
+  postTitle: 'Product update',
+}
+
+describe('TaskList', () => {
   afterEach(() => {
-    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
-  it('shows an empty state, then seeds and renders tasks after 5s', async () => {
+  it('starts a run from the empty state and renders its tasks', async () => {
+    const user = userEvent.setup()
     const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
-      if (url === '/api/tasks/seed-day' && init?.method === 'POST') {
-        return Promise.resolve({ json: () => Promise.resolve({ created: true, taskIds: ['t1'] }) })
+      if (url === '/api/tasks/restart-day' && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ taskIds: ['t1'] }) })
       }
       if (url === '/api/tasks') {
         return Promise.resolve({
-          json: () =>
-            Promise.resolve({
-              tasks: [
-                { id: 't1', topic: 'product-update', prompt: 'Write a product update.', author: { name: 'Priya Nathan' }, status: 'queued', createdAt: new Date().toISOString() },
-              ],
-            }),
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ tasks: [existingTask] }),
         })
       }
       throw new Error(`Unexpected fetch: ${url}`)
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    render(<TaskList />)
+    render(<TaskList initialTasks={[]} />)
 
-    expect(screen.getByText(/waiting for today's tasks/i)).toBeInTheDocument()
-
-    // React 19's scheduler flushes updates made outside of an event/act
-    // scope via a real task, which never fires under fake timers unless the
-    // advance itself is wrapped in `act` — otherwise the state update never
-    // reaches the DOM and the assertions below time out.
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5000)
-    })
-
-    // `@testing-library`'s `waitFor` only recognizes Jest's fake timers, not
-    // Vitest's — left active, it silently hangs forever instead of polling.
-    // The DOM is already up to date from the `act` advance above, so
-    // switching back to real timers here just lets `waitFor` do its (short,
-    // immediately-satisfied) job safely.
-    vi.useRealTimers()
+    expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /start day/i }))
 
     await waitFor(() => {
       expect(screen.getByText('product-update')).toBeInTheDocument()
     })
     expect(screen.getByText('Priya Nathan')).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledWith('/api/tasks/seed-day', expect.objectContaining({ method: 'POST' }))
+    expect(fetchMock).toHaveBeenCalledWith('/api/tasks/restart-day', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('confirms before restarting a day that already has tasks', async () => {
+    const user = userEvent.setup()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<TaskList initialTasks={[existingTask]} />)
+    await user.click(screen.getByRole('button', { name: /restart day/i }))
+
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

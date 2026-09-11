@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createDailyTasks } from '@/lib/tasks'
+import { restartDay } from '@/lib/tasks'
 
 export async function POST() {
-  const result = await createDailyTasks()
+  const result = await restartDay()
   return NextResponse.json(result)
 }

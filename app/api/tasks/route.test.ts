@@ -1,22 +1,14 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'
-import { prisma } from '@/lib/db'
-import { createDailyTasks } from '@/lib/tasks'
+import { describe, it, expect, beforeEach, afterAll } from 'vitest'
+import { restartDay } from '@/lib/tasks'
 import { GET } from './route'
-
-async function resetDb() {
-  await prisma.blogPost.deleteMany()
-  await prisma.task.deleteMany()
-}
+import { cleanupDatabase, resetContent } from '@/test/database'
 
 describe('GET /api/tasks', () => {
-  beforeEach(resetDb)
-  afterAll(async () => {
-    await resetDb()
-    await prisma.$disconnect()
-  })
+  beforeEach(resetContent)
+  afterAll(cleanupDatabase)
 
   it('returns the seeded tasks with status', async () => {
-    await createDailyTasks(new Date())
+    await restartDay(new Date())
     const response = await GET()
     const body = await response.json()
     expect(response.status).toBe(200)
