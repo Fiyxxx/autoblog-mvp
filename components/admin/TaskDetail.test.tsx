@@ -39,8 +39,8 @@ describe('TaskDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('Write a product update blog post for Aurora Labs.')).toBeInTheDocument()
     })
-    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.getByText('FILED')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: "What's New at Aurora Labs" })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /view live/i })).toHaveAttribute('href', '/blog/whats-new-at-aurora-labs-t1')
+    expect(screen.getByRole('link', { name: /view on the wire/i })).toHaveAttribute('href', '/blog/whats-new-at-aurora-labs-t1')
   })
 })

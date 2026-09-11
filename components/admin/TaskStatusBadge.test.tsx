@@ -5,12 +5,12 @@ import { TaskStatusBadge } from './TaskStatusBadge'
 describe('TaskStatusBadge', () => {
   it('renders a human label for each status', () => {
     render(<TaskStatusBadge status="queued" />)
-    expect(screen.getByText('Queued')).toBeInTheDocument()
+    expect(screen.getByText('QUEUED')).toBeInTheDocument()
 
     render(<TaskStatusBadge status="generating" />)
-    expect(screen.getByText('Generating')).toBeInTheDocument()
+    expect(screen.getByText('GENERATING')).toBeInTheDocument()
 
     render(<TaskStatusBadge status="completed" />)
-    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.getByText('FILED')).toBeInTheDocument()
   })
 })

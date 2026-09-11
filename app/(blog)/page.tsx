@@ -8,18 +8,24 @@ export default async function BlogHomePage() {
   const posts = await getPublishedPosts()
 
   if (posts.length === 0) {
-    return <p className="text-muted-foreground">No posts published yet — check back soon.</p>
+    return (
+      <p className="border-t border-border pt-10 text-center font-mono text-xs text-muted-foreground">
+        the wire is quiet — nothing filed yet
+      </p>
+    )
   }
 
   const [featured, ...rest] = posts
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-10">
       <FeaturedPost post={featured} />
       {rest.length > 0 && (
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid divide-y divide-border md:grid-cols-3 md:gap-8 md:divide-y-0 md:divide-x">
           {rest.map((post) => (
-            <PostCard key={post.slug} post={post} />
+            <div key={post.slug} className="py-6 first:pt-0 md:px-6 md:py-0 md:first:pl-0 md:last:pr-0">
+              <PostCard post={post} />
+            </div>
           ))}
         </div>
       )}

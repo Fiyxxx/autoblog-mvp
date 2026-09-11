@@ -46,40 +46,57 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     }
   }, [taskId])
 
-  if (!task) return <p className="text-muted-foreground">Loading…</p>
+  if (!task) return <p className="font-mono text-xs text-muted-foreground">loading…</p>
 
   return (
-    <div className="flex flex-col gap-8">
-      <section>
-        <div className="mb-2 flex items-center gap-3">
+    <div className="flex flex-col gap-10">
+      <section className="border border-border p-6">
+        <div className="mb-4 flex items-center justify-between font-mono text-xs text-muted-foreground">
+          <span className="uppercase tracking-wide text-ink-soft">{task.topic}</span>
           <TaskStatusBadge status={task.status} />
-          <span className="text-sm text-muted-foreground">{task.author.name}</span>
         </div>
-        <h2 className="mb-1 text-lg font-semibold">Prompt</h2>
-        <p>{task.prompt}</p>
+        <dl className="mb-5 grid grid-cols-3 gap-3 border-y border-border py-3 font-mono text-[0.7rem] text-muted-foreground">
+          <div>
+            <dt className="uppercase tracking-wide">Queued</dt>
+            <dd className="text-ink-soft">{new Date(task.queuedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</dd>
+          </div>
+          <div>
+            <dt className="uppercase tracking-wide">Writing</dt>
+            <dd className="text-ink-soft">{new Date(task.generatingAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</dd>
+          </div>
+          <div>
+            <dt className="uppercase tracking-wide">Filed</dt>
+            <dd className="text-ink-soft">{new Date(task.completedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</dd>
+          </div>
+        </dl>
+        <p className="mb-1 font-mono text-xs uppercase tracking-wide text-muted-foreground">Assignment</p>
+        <p className="font-serif text-lg">{task.prompt}</p>
+        <p className="mt-3 font-mono text-xs text-muted-foreground">— {task.author.name}</p>
       </section>
 
       {task.post && (
         <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">{task.status === 'completed' ? 'Published Preview' : 'Draft Preview'}</h2>
+          <div className="mb-4 flex items-center justify-between font-mono text-xs uppercase tracking-wide text-muted-foreground">
+            <span>{task.status === 'completed' ? 'Filed copy' : 'Draft in progress'}</span>
             {task.status === 'completed' && (
-              <Link href={`/blog/${task.post.slug}`} className="text-sm underline">
-                View live
+              <Link href={`/blog/${task.post.slug}`} className="text-brass normal-case tracking-normal hover:underline">
+                View on the wire
               </Link>
             )}
           </div>
-          <PostReader
-            post={{
-              title: task.post.title,
-              companyName: task.post.companyName,
-              authorName: task.author.name,
-              authorAvatarUrl: task.author.avatarUrl,
-              publishedAt: new Date(task.completedAt),
-              thumbnailUrl: task.post.thumbnailUrl,
-              contentMd: task.post.contentMd,
-            }}
-          />
+          <div className="bg-card p-6">
+            <PostReader
+              post={{
+                title: task.post.title,
+                companyName: task.post.companyName,
+                authorName: task.author.name,
+                authorAvatarUrl: task.author.avatarUrl,
+                publishedAt: new Date(task.completedAt),
+                thumbnailUrl: task.post.thumbnailUrl,
+                contentMd: task.post.contentMd,
+              }}
+            />
+          </div>
         </section>
       )}
     </div>
