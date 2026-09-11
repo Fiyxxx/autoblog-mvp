@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: autoblog
       POSTGRES_DB: autoblog
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - autoblog_pgdata:/var/lib/postgresql/data
 volumes:
